@@ -100,16 +100,24 @@ let satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
 const startUpdate = () => {
   const update = () => {
     if (!satelliteEntity || !viewer) return;
+    satelliteEntity.position =
+      new Cesium.CallbackProperty((time) => {
+        if (!time) return undefined;
+        const date = Cesium.JulianDate.toDate(time);
+        const pv = satellite.propagate(satrec, date);
+        if (!pv?.position) return undefined;
+        return eciToCesium(pv.position);
+      }, false) as unknown as Cesium.PositionProperty;
 
-    const positionProperty1 = new Cesium.SampledPositionProperty();
-    const now = new Date();
-    const orbit = calculateOrbit(TLE_LINE1, TLE_LINE2, now);
-    positionProperty1.addSample(
-        Cesium.JulianDate.now(),
-        eciToCesium(orbit.position)
-      );
-    satelliteEntity.position = positionProperty1;
-    animationFrame = requestAnimationFrame(update);
+    // const positionProperty1 = new Cesium.SampledPositionProperty();
+    // const now = new Date();
+    // const orbit = calculateOrbit(TLE_LINE1, TLE_LINE2, now);
+    // positionProperty1.addSample(
+    //     Cesium.JulianDate.now(),
+    //     eciToCesium(orbit.position)
+    //   );
+    // satelliteEntity.position = positionProperty1;
+    // animationFrame = requestAnimationFrame(update);
    
     // const positionProperty = new Cesium.SampledPositionProperty();
     // const startTime = Cesium.JulianDate.now();
