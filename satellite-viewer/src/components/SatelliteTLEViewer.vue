@@ -100,40 +100,36 @@ let satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
 const startUpdate = () => {
   const update = () => {
     if (!satelliteEntity || !viewer) return;
-    
-    // const now = new Date();
-    // const orbit = calculateOrbit(TLE_LINE1, TLE_LINE2, now);
-    // satelliteEntity.position = eciToCesium(orbit.position);
 
+    const positionProperty1 = new Cesium.SampledPositionProperty();
+    const now = new Date();
+    const orbit = calculateOrbit(TLE_LINE1, TLE_LINE2, now);
+    positionProperty1.addSample(
+        Cesium.JulianDate.now(),
+        eciToCesium(orbit.position)
+      );
+    satelliteEntity.position = positionProperty1;
+    animationFrame = requestAnimationFrame(update);
+   
     // const positionProperty = new Cesium.SampledPositionProperty();
     // const startTime = Cesium.JulianDate.now();
     // for (let i = 0; i < 3600; i += 10) {
-    //   const time = Cesium.JulianDate.addSeconds(startTime, i, new Cesium.JulianDate());
-    //   const minutes = i / 60;
-    //   const pv = satellite.propagate(satrec, minutes);
-    //   positionProperty.addSample(time, eciToCesium(pv.position));
+    //   const time = Cesium.JulianDate.addSeconds(
+    //     startTime,
+    //     i,
+    //     new Cesium.JulianDate()
+    //   );
+    //   // ⭐ Cesium → JS Date
+    //   const jsDate = Cesium.JulianDate.toDate(time);
+    //   // ⭐ 直接传 Date（关键修复）
+    //   const pv = satellite.propagate(satrec, jsDate);
+    //   if (!pv) continue;
+    //   positionProperty.addSample(
+    //     time,
+    //     eciToCesium(pv.position)
+    //   );
     // }
-
-    const positionProperty = new Cesium.SampledPositionProperty();
-    const startTime = Cesium.JulianDate.now();
-    for (let i = 0; i < 3600; i += 10) {
-      const time = Cesium.JulianDate.addSeconds(
-        startTime,
-        i,
-        new Cesium.JulianDate()
-      );
-      // ⭐ Cesium → JS Date
-      const jsDate = Cesium.JulianDate.toDate(time);
-      // ⭐ 直接传 Date（关键修复）
-      const pv = satellite.propagate(satrec, jsDate);
-      if (!pv) continue;
-      positionProperty.addSample(
-        time,
-        eciToCesium(pv.position)
-      );
-    }
-    satelliteEntity.position = positionProperty;
-    animationFrame = requestAnimationFrame(update);
+    // satelliteEntity.position = positionProperty;
   };
   update();
 };
