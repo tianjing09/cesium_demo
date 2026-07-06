@@ -14,7 +14,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import * as Cesium from 'cesium';
+// import * as Cesium from 'cesium';
+import Cesium from "../cesium";
 import { parseTLE7Params, calculateOrbit, eciToCesium } from '../utils/tleCalculator';
 import type { TLE7Params } from '../types/tle';
 
@@ -178,3 +179,33 @@ onUnmounted(() => {
   font-family: monospace;
 }
 </style>
+
+<!-- <template>
+  <div id="cesiumContainer"></div>
+</template>
+
+<script setup lang="ts">
+import { onMounted } from "vue";
+import Cesium from "../cesium";
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTE4NjNkNC0wNGI2LTQ4ZGItYWE5My1lYWUxMDU0MDBhOWUiLCJpZCI6NDUyODYyLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODMzMDg0OTF9.oWll3Sdsw3mtsoVE521wXKhJKhiaCDtf5Byc3_UbUFo";
+onMounted(() => {
+  const viewer = new Cesium.Viewer("cesiumContainer", {
+    animation: false,
+    timeline: false,
+    geocoder: false,
+    baseLayerPicker: false,
+  });
+
+  // 示例：飞到北京
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(116.39, 39.9, 1000000),
+  });
+});
+</script>
+
+<style scoped>
+#cesiumContainer {
+  width: 100vw;
+  height: 100vh;
+}
+</style> -->

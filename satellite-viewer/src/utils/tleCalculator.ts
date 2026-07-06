@@ -1,4 +1,5 @@
 import * as Cesium from 'cesium';
+// import Cesium from "./cesium"
 import { propagate, twoline2satrec } from 'sgp4';
 // 修改这里：用 type 关键字导入类型
 import type { TLE7Params, SGP4Result } from '../types/tle';
