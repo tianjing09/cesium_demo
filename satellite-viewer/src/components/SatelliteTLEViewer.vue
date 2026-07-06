@@ -1,3 +1,4 @@
+<!-- components/SatelliteTLEViewer.vue -->
 <template>
   <div class="tle-viewer">
     <div id="cesiumContainer" ref="cesiumRef"></div>
@@ -16,8 +17,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 // import * as Cesium from 'cesium';
 import Cesium from "../cesium";
-import { parseTLE7Params, calculateOrbit, eciToCesium } from '../utils/tleCalculator';
+import { parseTLE7Params, eciToCesium, calculateOrbit} from '../utils/tleCalculator';
 import type { TLE7Params } from '../types/tle';
+import * as satellite from "satellite.js";
 
 // 配置Cesium Token（替换成你自己的）
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTE4NjNkNC0wNGI2LTQ4ZGItYWE5My1lYWUxMDU0MDBhOWUiLCJpZCI6NDUyODYyLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODMzMDg0OTF9.oWll3Sdsw3mtsoVE521wXKhJKhiaCDtf5Byc3_UbUFo';
@@ -29,12 +31,54 @@ let satelliteEntity: Cesium.Entity | null = null;
 let orbitPath: Cesium.Entity | null = null;
 let animationFrame: number | null = null;
 
-// 示例TLE（国际空间站）
+// 示例TLE（低轨卫星，包含B*拖曳系数）
 const TLE_LINE1 = '1 25544U 98067A   25120.50000000  .00000000  00000-0  12345-6 0  9999';
 const TLE_LINE2 = '2 25544  51.6400  90.0000 0003000   0.0000  0.0000 15.00000000999999';
 
 // 7参数TLE对象
 const tle7Params = ref<TLE7Params>(parseTLE7Params(TLE_LINE1, TLE_LINE2));
+
+// 初始化Cesium
+const initCesium = () => {
+  if (!cesiumRef.value) return;
+  
+  viewer = new Cesium.Viewer(cesiumRef.value, {
+    timeline: false,
+    animation: false,
+    baseLayerPicker: true,
+    geocoder: false,
+    homeButton: false,
+  });
+
+  // 创建卫星实体
+  satelliteEntity = viewer.entities.add({
+    position: new Cesium.Cartesian3(),
+    point: {
+      pixelSize: 8,
+      color: Cesium.Color.RED,
+      outlineColor: Cesium.Color.WHITE,
+      outlineWidth: 2,
+    },
+    label: {
+      text: 'TLE卫星(含B*阻力)',
+      font: '14px sans-serif',
+      fillColor: Cesium.Color.WHITE,
+      pixelOffset: new Cesium.Cartesian2(0, -15),
+    },
+  });
+
+  // 创建轨道线
+  orbitPath = viewer.entities.add({
+    polyline: {
+      positions: new Cesium.CallbackProperty(() => getOrbitPositions(), false),
+      width: 2,
+      material: Cesium.Color.YELLOW.withAlpha(0.6),
+    },
+  });
+
+  // 启动实时更新
+  startUpdate();
+};
 
 // 计算轨道轨迹（多时刻采样）
 const getOrbitPositions = (): Cesium.Cartesian3[] => {
@@ -51,85 +95,46 @@ const getOrbitPositions = (): Cesium.Cartesian3[] => {
   return positions;
 };
 
-// 获取卫星位置的回调函数
-const getSatellitePosition = (): Cesium.Cartesian3 => {
-  const now = new Date();
-  const orbit = calculateOrbit(TLE_LINE1, TLE_LINE2, now);
-  return eciToCesium(orbit.position);
-};
-
-// 初始化Cesium
-const initCesium = () => {
-  if (!cesiumRef.value) return;
-  
-  viewer = new Cesium.Viewer(cesiumRef.value, {
-    timeline: false,
-    animation: false,
-    baseLayerPicker: true,
-    geocoder: false,
-    homeButton: false,
-    shouldAnimate: true,
-  });
-
-  // 创建卫星实体 - 使用 CallbackPositionProperty
-  satelliteEntity = viewer.entities.add({
-    position: new Cesium.CallbackPositionProperty(
-      () => {
-        return getSatellitePosition();
-      },
-      false // 是否异步
-    ),
-    point: {
-      pixelSize: 8,
-      color: Cesium.Color.RED,
-      outlineColor: Cesium.Color.WHITE,
-      outlineWidth: 2,
-    },
-    label: {
-      text: 'TLE卫星(含B*阻力)',
-      font: '14px sans-serif',
-      fillColor: Cesium.Color.WHITE,
-      pixelOffset: new Cesium.Cartesian2(0, -15),
-    },
-  });
-
-  // 创建轨道线 - 使用 CallbackProperty（这个可以用普通的）
-  orbitPath = viewer.entities.add({
-    polyline: {
-      positions: new Cesium.CallbackProperty(
-        () => {
-          return getOrbitPositions();
-        },
-        false
-      ),
-      width: 2,
-      material: new Cesium.ColorMaterialProperty(Cesium.Color.YELLOW.withAlpha(0.6)),
-    },
-  });
-
-  // 启动实时更新
-  startUpdate();
-};
-
+let satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
 // 实时更新卫星位置
 const startUpdate = () => {
   const update = () => {
-    if (!viewer) return;
+    if (!satelliteEntity || !viewer) return;
     
-    // 每帧更新轨道位置缓存（让轨道线动起来）
-    if (orbitPath && orbitPath.polyline) {
-      // 触发 CallbackProperty 重新计算
-      (orbitPath.polyline as any).positions = new Cesium.CallbackProperty(
-        () => {
-          return getOrbitPositions();
-        },
-        false
+    // const now = new Date();
+    // const orbit = calculateOrbit(TLE_LINE1, TLE_LINE2, now);
+    // satelliteEntity.position = eciToCesium(orbit.position);
+
+    // const positionProperty = new Cesium.SampledPositionProperty();
+    // const startTime = Cesium.JulianDate.now();
+    // for (let i = 0; i < 3600; i += 10) {
+    //   const time = Cesium.JulianDate.addSeconds(startTime, i, new Cesium.JulianDate());
+    //   const minutes = i / 60;
+    //   const pv = satellite.propagate(satrec, minutes);
+    //   positionProperty.addSample(time, eciToCesium(pv.position));
+    // }
+
+    const positionProperty = new Cesium.SampledPositionProperty();
+    const startTime = Cesium.JulianDate.now();
+    for (let i = 0; i < 3600; i += 10) {
+      const time = Cesium.JulianDate.addSeconds(
+        startTime,
+        i,
+        new Cesium.JulianDate()
+      );
+      // ⭐ Cesium → JS Date
+      const jsDate = Cesium.JulianDate.toDate(time);
+      // ⭐ 直接传 Date（关键修复）
+      const pv = satellite.propagate(satrec, jsDate);
+      if (!pv) continue;
+      positionProperty.addSample(
+        time,
+        eciToCesium(pv.position)
       );
     }
-    
+    satelliteEntity.position = positionProperty;
     animationFrame = requestAnimationFrame(update);
   };
-  
   update();
 };
 
@@ -165,47 +170,5 @@ onUnmounted(() => {
   border-radius: 8px;
   min-width: 320px;
   font-size: 13px;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.control-panel h3 {
-  margin: 0 0 10px 0;
-  color: #4fc3f7;
-}
-
-.control-panel p {
-  margin: 5px 0;
-  font-family: monospace;
 }
 </style>
-
-<!-- <template>
-  <div id="cesiumContainer"></div>
-</template>
-
-<script setup lang="ts">
-import { onMounted } from "vue";
-import Cesium from "../cesium";
-Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTE4NjNkNC0wNGI2LTQ4ZGItYWE5My1lYWUxMDU0MDBhOWUiLCJpZCI6NDUyODYyLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODMzMDg0OTF9.oWll3Sdsw3mtsoVE521wXKhJKhiaCDtf5Byc3_UbUFo";
-onMounted(() => {
-  const viewer = new Cesium.Viewer("cesiumContainer", {
-    animation: false,
-    timeline: false,
-    geocoder: false,
-    baseLayerPicker: false,
-  });
-
-  // 示例：飞到北京
-  viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(116.39, 39.9, 1000000),
-  });
-});
-</script>
-
-<style scoped>
-#cesiumContainer {
-  width: 100vw;
-  height: 100vh;
-}
-</style> -->
