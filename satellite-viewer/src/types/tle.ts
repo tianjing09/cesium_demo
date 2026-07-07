@@ -14,6 +14,7 @@ export interface TLE7Params {
   meanMotion: number; // 平均运动(圈/天)
   // B*拖曳系数（低轨大气阻力核心参数）
   bStar: number;
+  satnum: string;
 }
 
 /**

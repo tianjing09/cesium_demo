@@ -4,6 +4,7 @@
     <div id="cesiumContainer" ref="cesiumRef"></div>
     <div class="control-panel">
       <h3>TLE 7参数信息</h3>
+      <p>编号：{{ tle7Params.satnum.toLocaleString() }}</p>
       <p>历元时刻：{{ tle7Params.epoch.toLocaleString() }}</p>
       <p>轨道倾角：{{ tle7Params.inclination.toFixed(2) }}°</p>
       <p>偏心率：{{ tle7Params.eccentricity.toFixed(6) }}</p>
@@ -22,7 +23,7 @@ import type { TLE7Params } from '../types/tle';
 import * as satellite from "satellite.js";
 
 // 配置Cesium Token（替换成你自己的）
-Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTE4NjNkNC0wNGI2LTQ4ZGItYWE5My1lYWUxMDU0MDBhOWUiLCJpZCI6NDUyODYyLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODMzMDg0OTF9.oWll3Sdsw3mtsoVE521wXKhJKhiaCDtf5Byc3_UbUFo';
+// Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTE4NjNkNC0wNGI2LTQ4ZGItYWE5My1lYWUxMDU0MDBhOWUiLCJpZCI6NDUyODYyLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODMzMDg0OTF9.oWll3Sdsw3mtsoVE521wXKhJKhiaCDtf5Byc3_UbUFo';
 
 // DOM引用
 const cesiumRef = ref<HTMLElement | null>(null);
@@ -32,22 +33,24 @@ let orbitPath: Cesium.Entity | null = null;
 let animationFrame: number | null = null;
 
 // 示例TLE（低轨卫星，包含B*拖曳系数）
-const TLE_LINE1 = '1 25544U 98067A   25120.50000000  .00000000  00000-0  12345-6 0  9999';
-const TLE_LINE2 = '2 25544  51.6400  90.0000 0003000   0.0000  0.0000 15.00000000999999';
+// https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle
+const TLE_LINE1 = '1 66052U 98067XR  26187.35810614  .00093203  00000+0  55809-3 0  9997';
+const TLE_LINE2 = '2 66052  51.6203 180.4883 0002291  29.8716 330.2414 15.77055570 41023';
 
 // 7参数TLE对象
 const tle7Params = ref<TLE7Params>(parseTLE7Params(TLE_LINE1, TLE_LINE2));
+let satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
 
 // 初始化Cesium
 const initCesium = () => {
   if (!cesiumRef.value) return;
   
   viewer = new Cesium.Viewer(cesiumRef.value, {
-    timeline: false,
-    animation: false,
+    timeline: true,
+    animation: true,
     baseLayerPicker: true,
-    geocoder: false,
-    homeButton: false,
+    geocoder: true,
+    homeButton: true,
   });
 
   // 创建卫星实体
@@ -60,7 +63,7 @@ const initCesium = () => {
       outlineWidth: 2,
     },
     label: {
-      text: 'TLE卫星(含B*阻力)',
+      text: `${tle7Params.value.satnum.toLocaleString()}(含B*阻力)`,
       font: '14px sans-serif',
       fillColor: Cesium.Color.WHITE,
       pixelOffset: new Cesium.Cartesian2(0, -15),
@@ -95,7 +98,6 @@ const getOrbitPositions = (): Cesium.Cartesian3[] => {
   return positions;
 };
 
-let satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
 // 实时更新卫星位置
 const startUpdate = () => {
   const update = () => {

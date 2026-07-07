@@ -13,7 +13,7 @@ export function parseTLE7Params(line1: string, line2: string): TLE7Params {
   const satrec = satellite.twoline2satrec(line1, line2);
   
   return {
-    epoch: new Date(satrec.jdsatepoch * 86400 * 1000), // 历元时刻
+    epoch: new Date((satrec.jdsatepoch  - 2440587.5) * 86400 * 1000), // 历元时刻
     inclination: satrec.inclo * (180 / Math.PI), // 倾角
     raan: satrec.nodeo * (180 / Math.PI), // 升交点赤经
     eccentricity: satrec.ecco, // 偏心率
@@ -21,6 +21,7 @@ export function parseTLE7Params(line1: string, line2: string): TLE7Params {
     meanAnomaly: satrec.mo * (180 / Math.PI), // 平近点角
     meanMotion: satrec.no * 720 / Math.PI, // 平均运动(圈/天)
     bStar: satrec.bstar, // B*拖曳系数（核心阻力参数）
+    satnum: satrec.satnum,
   };
 }
 
