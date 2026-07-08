@@ -10,12 +10,13 @@
       <p>偏心率：{{ tle7Params.eccentricity.toFixed(6) }}</p>
       <p>B*拖曳系数：{{ tle7Params.bStar.toExponential(6) }}</p>
       <p>平均运动：{{ tle7Params.meanMotion.toFixed(4) }} 圈/天</p>
+      <p>位置: {{ positionText }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 // import * as Cesium from 'cesium';
 import Cesium from "../cesium";
 import { parseTLE7Params, eciToCesium, calculateOrbit} from '../utils/tleCalculator';
@@ -40,6 +41,17 @@ const TLE_LINE2 = '2 66052  51.6203 180.4883 0002291  29.8716 330.2414 15.770555
 // 7参数TLE对象
 const tle7Params = ref<TLE7Params>(parseTLE7Params(TLE_LINE1, TLE_LINE2));
 let satrec = satellite.twoline2satrec(TLE_LINE1, TLE_LINE2);
+const position = ref({
+  x: 0,
+  y: 0,
+  z: 0
+});
+
+// ✅ 计算属性：格式化位置文本
+const positionText = computed(() => {
+  const { x, y, z } = position.value;
+  return `(${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`;
+});
 
 // 初始化Cesium
 const initCesium = () => {
@@ -51,6 +63,7 @@ const initCesium = () => {
     baseLayerPicker: true,
     geocoder: true,
     homeButton: true,
+    shouldAnimate: true,
   });
 
   // 创建卫星实体
@@ -108,7 +121,17 @@ const startUpdate = () => {
         const date = Cesium.JulianDate.toDate(time);
         const pv = satellite.propagate(satrec, date);
         if (!pv?.position) return undefined;
-        return eciToCesium(pv.position);
+        // ✅ 转换为 Cesium 坐标
+        const cesiumPos = eciToCesium(pv.position);
+        
+        // ✅ 更新响应式位置数据
+        position.value = {
+          x: cesiumPos.x,
+          y: cesiumPos.y,
+          z: cesiumPos.z
+        };
+        
+        return cesiumPos;
       }, false) as unknown as Cesium.PositionProperty;
 
     // const positionProperty1 = new Cesium.SampledPositionProperty();
